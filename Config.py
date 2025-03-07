@@ -4,7 +4,7 @@ import zipfile
 import pydicom
 from matplotlib import pyplot as plt
 from PIL import Image
-from pathlib import Path
+from pathlib import Path #https://docs.python.org/3/library/pathlib.html
 
 def unzip(zip_path, extract_path):
     """
@@ -36,17 +36,6 @@ def dicom_to_png_jpeg(dicom_dir, filename, save_path, jpg=False, verbose=False):
     """
     Converts the filename file in the dicom_dir to either a jpeg 
     or a png file and saves it in the save_path.
-    To show a DICOM image we need to preprocess the data sometimes.
-
-    DICOM help:
-    https://stackoverflow.com/questions/70091655/dicom-data-training-failed-by-pytorch
-    https://www.youtube.com/watch?v=N-3-AOU54yE
-    https://mlerma54.github.io/papers/lidc-dicom.pdf
-
-    This task consists of changing the contrast(opacity?) of the image:
-    hounsfield_min = pixel_data.min()
-    hounsfield_max = pixel_data.max()
-    hounsfield_range = hounsfield_max - hounsfield_min
     """
 
     try:
@@ -68,6 +57,19 @@ def dicom_to_png_jpeg(dicom_dir, filename, save_path, jpg=False, verbose=False):
     return
 
 def dicom_preprocess(path):
+    """
+    To show a DICOM image we need to preprocess the data sometimes.
+
+    DICOM help:
+    https://stackoverflow.com/questions/70091655/dicom-data-training-failed-by-pytorch
+    https://www.youtube.com/watch?v=N-3-AOU54yE
+    https://mlerma54.github.io/papers/lidc-dicom.pdf
+
+    This task consists of changing the contrast(opacity?) of the image:
+    hounsfield_min = pixel_data.min()
+    hounsfield_max = pixel_data.max()
+    hounsfield_range = hounsfield_max - hounsfield_min
+    """
     dcm_file = pydicom.dcmread(path)
     
     pixel_data = dcm_file.pixel_array.astype(np.float32) # why np.float32?????
@@ -89,7 +91,6 @@ def dicom_preprocess(path):
 
 def delete_converted_folders(): pass
 
-"""
 if __name__ == "__main__":
     base_path = Path("C:/Users/HP/Desktop/PIMA/3Dircadb1")
     for i in range(2, 3):
@@ -106,4 +107,3 @@ if __name__ == "__main__":
 
         unzip(base_path / current / (labelled + ".zip"), base_path / current / labelled)
         convert_folder(base_path / current / labelled / labelled, base_path / current / labelled / "converted")
-"""

@@ -7,6 +7,8 @@ from pathlib import Path
 from Loaders import * 
 
 # to isntall torch : pip3 install torch torchvision torchaudio
+# https://youtu.be/Sj-gIb0QiRM?si=zhdg12zIHM9E7ajD
+
 class LiverCTDataset(data.Dataset):
     def __init__(self, inputs: list, masks: list, transform=None):
         self.inputs = inputs        # a list of inputs paths

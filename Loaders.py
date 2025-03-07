@@ -15,7 +15,7 @@ def load_dicom_folder(folder_path: Path):
     return dicoms
 
 # Loading all the patients -------------------------------------------------------------------------
-def load_all_dicom(base_path: str, dicom_type="p"):
+def load_all_dicom(base_path: str):
     """
     dicom_type could be p:patient, l:labelled, or m:masks
     """
@@ -47,7 +47,6 @@ def load_all_dicom(base_path: str, dicom_type="p"):
 
     return all_patient, all_labelled, all_masks
 
-"""
 if __name__ == "__main__":
     base_path = Path("C:/Users/HP/Desktop/PIMA/3Dircadb1")    
     patients, labelled, masks = load_all_dicom(base_path, dicom_type="m")
@@ -55,4 +54,3 @@ if __name__ == "__main__":
     print(len(patients), len(np.unique(patients)))
     assert len(np.unique(patients)) == len(np.unique(labelled))
     assert len(labelled) == len(np.unique(masks))
-"""
