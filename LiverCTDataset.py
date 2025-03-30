@@ -16,7 +16,7 @@ class LiverCTDataset(Dataset):
 
         self.transform = transform  
         self.inputs_dtype = torch.float32
-        self.masks_dtype = torch.long # =torch.int64
+        self.masks_dtype = torch.float32
         self.showHisto = showHisto
 
     def __len__(self):
@@ -56,8 +56,7 @@ class LiverCTDataset(Dataset):
         image, mask = torch.from_numpy(image).type(self.inputs_dtype), torch.from_numpy(mask).type(self.masks_dtype)
 
         # Now shape: (1, H, W)
-        image = image.permute(2, 0, 1)  
-        mask  = mask.permute(2, 0, 1)   
+        image, mask = image.permute(2, 0, 1), mask.permute(2, 0, 1)   
         
         if self.showHisto:
             plt.title(f"histogram for {os.path.splitext(inputs_ID)[0]}:")
