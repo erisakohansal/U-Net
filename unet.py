@@ -12,3 +12,12 @@ class UNet(nn.Module):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
+    
+if __name__ == '__main__':
+    import torch
+    x = torch.randn((3,1,160,160))
+    model = UNet()
+    preds = model(x)
+    print(preds.shape)
+    print(x.shape)
+    assert x.shape == preds.shape
