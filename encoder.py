@@ -14,12 +14,17 @@ class Encoder(nn.Module):
             self.down.append(DoubleConv(in_channels, channel))
             in_channels = channel
 
+        self.bottleneck = DoubleConv(512, 1024)
+
     def forward(self, x):
-        residual_connections = []
+        skip_connections = []
 
         for down in self.down:
             x = down(x)
-            residual_connections.append(x)
+            # skip connections store the feature maps from each level before they get downsampled
+            skip_connections.append(x)
             x = self.pool(x)
 
-        return x, residual_connections
+        x = self.bottleneck(x)
+
+        return x, skip_connections

@@ -9,37 +9,32 @@ class Decoder(nn.Module):
     def __init__(self, out_channel=1, channels=(512, 256, 128, 64)):
         super(Decoder, self).__init__()
 
-        self.up_tp = nn.ModuleList()
-        self.dc = DoubleConv(512, 1024)
+        self.up = nn.ModuleList()
 
         for channel in channels:
-            self.up_tp.append(
-                self.up_transpose(channel * 2, channel),
+            # upsampling convolution
+            self.up.append(
+                nn.ConvTranspose2d(in_channels=channel * 2, out_channels=channel, kernel_size=2, stride=2)
             )
-            self.up_tp.append(DoubleConv(channel * 2, channel))
+            self.up.append(DoubleConv(channel * 2, channel))
 
         self.final_conv = nn.Conv2d(channels[-1], out_channel, kernel_size=1)
 
-    @staticmethod
-    def up_transpose(in_channel, out_channel):
-        return nn.ConvTranspose2d(in_channels=in_channel, out_channels=out_channel, kernel_size=2, stride=2)
-
     def forward(self, x):
-        out, residual_connections = x
+        out, skip_connections = x
 
-        residual_connections = residual_connections[::-1]
+        skip_connections = skip_connections[::-1]
 
-        out = self.dc(out)
+        for i in range(0, len(self.up), 2):
+            out = self.up[i](out)
+            skip_connection = skip_connections[i//2] # can't do i-1 because of index 0
 
-        for i in range(0, len(self.up_tp), 2):
-            out = self.up_tp[i](out)
-            residual_connection = residual_connections[i // 2]
+            # avoids problems arising from the difference of size
+            if out.shape != skip_connection:
+                out = tf.resize(out, size=skip_connection.shape[2:])
 
-            if out.shape != residual_connection:
-                out = tf.resize(out, size=residual_connection.shape[2:])
+            concat = torch.cat((skip_connection, out), dim=1)
 
-            concat_residue = torch.cat((residual_connection, out), dim=1)
-
-            out = self.up_tp[i + 1](concat_residue)
+            out = self.up[i+1](concat)
 
         return self.final_conv(out)
