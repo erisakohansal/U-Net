@@ -14,7 +14,7 @@ class Encoder(nn.Module):
             self.down.append(DoubleConv(in_channels, channel))
             in_channels = channel
 
-        self.bottleneck = DoubleConv(512, 1024)
+        self.bottleneck = DoubleConv(channels[-1], channels[-1]*2)
 
     def forward(self, x):
         skip_connections = []

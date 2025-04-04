@@ -1,49 +1,59 @@
 import torch
 from torch.utils.data import Dataset
 from pathlib import Path
+from pydicom import dcmread
 import matplotlib.pyplot as plt
 import os
 import cv2
 import numpy as np
 
-from utils import dicom_preprocess, load_folder
+from utils import dicom_preprocess, load_folder, load_all_liver_appearances
 
 class LiverCTDataset(Dataset):
     # https://youtu.be/Sj-gIb0QiRM?si=zhdg12zIHM9E7ajD
-    def __init__(self, inputs: list, masks: list, transform=None, showHisto=False):
-        self.inputs = inputs        # a list of inputs paths
+    def __init__(self, images: list, masks: list, transform=None, showHisto=False, dicom=True, min_hu=-100, max_hu=400):
+        self.images = images        # a list of images paths
         self.masks = masks          # a list of target paths
 
         self.transform = transform  
-        self.inputs_dtype = torch.float32
+
+        self.images_dtype = torch.float32
         self.masks_dtype = torch.float32
+
         self.showHisto = showHisto
+        self.dicom = dicom
+        self.min_hu = min_hu
+        self.max_hu = max_hu
 
     def __len__(self):
-        return len(self.inputs)
+        return len(self.images)
     
     def __getitem__(self, index: int):
-        inputs_ID = self.inputs[index]
-        masks_ID = self.masks[index]
+        image_ID = self.images[index]
+        mask_ID = self.masks[index]
 
-        # Image
-        image = cv2.imread(inputs_ID, cv2.IMREAD_GRAYSCALE)
-        image = image/255.
-        print(image.shape)
-        image = np.expand_dims(image, -1) # a single‐slice grayscale DICOM typically comes out [H, W] so you don't get [N, H, W] unless you explicitly insert the channel dimension
-        # Note : Albumentations expects images in (H, W, C) format
-        print(image.shape)
-        image = image.astype(np.float32)
-        #image = torch.from_numpy(image)
+        if self.dicom:
+            image = dicom_preprocess(image_ID, min_hu=self.min_hu, max_hu=self.max_hu)
+            image = (image - self.min_hu)/(self.max_hu - self.min_hu)
+            image = np.expand_dims(image, -1)
+            image = image.astype(np.float32)
 
-        # Mask
-        mask = cv2.imread(masks_ID, cv2.IMREAD_GRAYSCALE)
-        mask = mask/255.
-        print(mask.shape)
-        mask = np.expand_dims(mask, -1)
-        print(mask.shape)
-        mask = mask.astype(np.float32)
-        #mask = torch.from_numpy(mask)
+            mask = dcmread(mask_ID).pixel_array
+            mask = (mask > 0).astype(np.float32)  # Convertit tout pixel non nul en 1
+            mask = np.expand_dims(mask, -1)
+            mask = mask.astype(np.float32)
+
+        else:
+            image = cv2.imread(image_ID, cv2.IMREAD_GRAYSCALE)
+            image = image/255.
+            image = np.expand_dims(image, -1) # a single‐slice grayscale DICOM typically comes out [H, W] so you don't get [N, H, W] unless you explicitly insert the channel dimension
+            # Note : Albumentations expects images in (H, W, C) format
+            image = image.astype(np.float32)
+
+            mask = cv2.imread(mask_ID, cv2.IMREAD_GRAYSCALE)
+            mask = mask/255.
+            mask = np.expand_dims(mask, -1)
+            mask = mask.astype(np.float32)
 
         if self.transform is not None:
             aug = self.transform(image=image, mask=mask)
@@ -53,13 +63,13 @@ class LiverCTDataset(Dataset):
         # making sure that we obtain a torch.tensor
         # usually we would have for inputs a torch.float32 and for 
         # target a torch.int64 to be used to create our dataloader
-        image, mask = torch.from_numpy(image).type(self.inputs_dtype), torch.from_numpy(mask).type(self.masks_dtype)
+        image, mask = torch.from_numpy(image).type(self.images_dtype), torch.from_numpy(mask).type(self.masks_dtype)
 
         # Now shape: (1, H, W)
         image, mask = image.permute(2, 0, 1), mask.permute(2, 0, 1)   
         
         if self.showHisto:
-            plt.title(f"histogram for {os.path.splitext(inputs_ID)[0]}:")
+            plt.title(f"histogram for {os.path.splitext(image_ID)[0]}:")
             plt.hist(image.flatten())
             plt.xticks([-1000, -500, -200, 0, 200, 500, 1000])
             plt.show()
@@ -68,33 +78,34 @@ class LiverCTDataset(Dataset):
     
 if __name__ == "__main__":
     base_path = Path("C:/Users/HP/Desktop/PIMA")
+
     import albumentations as A
     from torch.utils.data import DataLoader 
+
     p=0.95
     dicom_augmentation = A.Compose([
-        A.OneOf([
-            A.HorizontalFlip(p=p),
-            A.VerticalFlip(p=p),
-            A.Transpose(p=p),
-            A.RandomRotate90(p=p),
-            A.ShiftScaleRotate(p=p, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45)
-        ], p=1),
-        A.ElasticTransform(p=p, alpha=15, sigma=1, interpolation=cv2.INTER_NEAREST),
+        A.Affine(
+            scale=(0.9, 1.1),
+            translate_percent={"x": 0.0625, "y": 0.0625},
+            rotate=(-45, 45),
+            shear={"x": (-5, 5), "y": (-5, 5)},
+            p=p
+        ),
         A.RandomBrightnessContrast(p=p, brightness_limit=0.15, contrast_limit=0.15),
-        A.PadIfNeeded(p=1, min_height=128, min_width=128, border_mode=cv2.BORDER_REFLECT)
     ])
 
-    # exemple : lire les images du premier patient : image_27 et image_70
-    input = base_path/"Data/Inputs"
-    mask = base_path/"Data/Masks"
+    # image = base_path/"3Dircadb1/3Dircadb1.2/PATIENT_DICOM/PATIENT_DICOM"
+    # mask = base_path/"3Dircadb1/3Dircadb1.2/MASKS_DICOM/MASKS_DICOM/liver"
+    # images = load_folder(image)
+    # masks = load_folder(mask)
 
-    inputs = load_folder(input)
-    masks = load_folder(mask)
+    images, masks = load_all_liver_appearances(base_path=base_path)
 
-    training_dataset = LiverCTDataset(inputs=inputs, 
+    training_dataset = LiverCTDataset(images=images, 
                             masks=masks,
                             transform=dicom_augmentation,
-                            showHisto=False)
+                            showHisto=False, 
+                            dicom=True)
 
     training_dataloader = DataLoader(dataset=training_dataset, 
                                         batch_size=2, 

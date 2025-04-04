@@ -7,6 +7,28 @@ from PIL import Image
 from pathlib import Path #https://docs.python.org/3/library/pathlib.html
 import shutil
 
+LIVER_INDICES = {1:  (27 , 124),
+                 2:  (44 , 157),
+                 3:  (61 , 182),
+                 4:  (19 , 85 ),
+                 5:  (19 , 137),
+                 6:  (37 , 132),
+                 7:  (48 , 145),
+                 8:  (6  , 121),
+                 9:  (11 , 99 ),
+                 10: (22 , 120),
+                 11: (33 , 128),
+                 12: (9  , 247),
+                 13: (26 , 115),
+                 14: (4  , 107),
+                 15: (6  , 120),
+                 16: (39 , 151),
+                 17: (1  , 113),
+                 18: (12 , 70 ),
+                 19: (28 , 68 ),
+                 20: (126, 210),
+            }
+
 # Folder related functions -----------------------------------------------------------------------
 def unzip(zip_path, extract_path):
     """
@@ -21,33 +43,25 @@ def unzip(zip_path, extract_path):
     print(f"{zip_path} is extracted to: {extract_path}")
     return
 
-def train_test_division(base_path:Path, jpg=False, verbose=False, train_percent=80, total_images=2823):
-    train_count = np.floor(total_images * train_percent/100)
-    test_count = total_images - train_count
-    print("total:", total_images)
-    print("train:", train_count)
-    print("test:", test_count)
-
+def train_test_division(base_path:Path, jpg=False, verbose=False, train_patients=list(range(1,19))):
     os.makedirs(base_path/"Data/Train/Images", exist_ok=True)  
     os.makedirs(base_path/"Data/Test/Images", exist_ok=True) 
     os.makedirs(base_path/"Data/Train/Masks", exist_ok=True)  
     os.makedirs(base_path/"Data/Test/Masks", exist_ok=True) 
 
-    counter = 0
-    current_folder = "Train"
     for num_patient in range(1, 21):
+
+        if num_patient in train_patients:
+            current_folder = "Train"
+        else:
+            current_folder = "Test"
+
         for filename in os.listdir(base_path/f"3Dircadb1/3Dircadb1.{num_patient}/PATIENT_DICOM/PATIENT_DICOM"):
             elems = filename.split("_", 1)
             num_slice = elems[1]
-            counter += 1
-            if counter == train_count + 1: #current_folder == "train" and counter > train_count:  
-                current_folder = "Test"
+
             dicom_to_png_jpeg(dicom_dir=base_path/f"3Dircadb1/3Dircadb1.{num_patient}/PATIENT_DICOM/PATIENT_DICOM/image_{num_slice}", filename=f"image_{num_patient}_{num_slice}", save_path=base_path/"Data"/current_folder/"Images", jpg=jpg, verbose=verbose, preprocess=True)
             dicom_to_png_jpeg(dicom_dir=base_path/f"3Dircadb1/3Dircadb1.{num_patient}/MASKS_DICOM/MASKS_DICOM/liver/image_{num_slice}", filename=f"image_{num_patient}_{num_slice}", save_path=base_path/"Data"/current_folder/"Masks", jpg=jpg, verbose=verbose, preprocess=False)
-        
-    assert len(os.listdir(base_path/"Data/Train/Images")) == train_count and len(os.listdir(base_path/"Data/Train/Masks")) == train_count
-    assert len(os.listdir(base_path/"Data/Test/Images")) == test_count and len(os.listdir(base_path/"Data/Test/Images")) == test_count
-
     return
 
 def create_data_folder(base_path:Path, jpg=False, verbose=False, preprocess=False):
@@ -81,7 +95,7 @@ def convert_folder(dicom_dir, output_dir, patient_num, jpg=False, verbose=False,
     return 
 
 
-def dicom_to_png_jpeg(dicom_dir, filename, save_path, jpg=False, verbose=False, preprocess=False):
+def dicom_to_png_jpeg(dicom_dir, filename, save_path, jpg=False, verbose=False, preprocess=False, min_hu=-100, max_hu=400):
     """
     Converts the filename file in the dicom_dir to either a jpeg 
     or a png file and saves it in the save_path.
@@ -89,17 +103,14 @@ def dicom_to_png_jpeg(dicom_dir, filename, save_path, jpg=False, verbose=False, 
     os.makedirs(save_path, exist_ok=True)
     try:
         if preprocess:
-            pixel_data = dicom_preprocess(dicom_dir)
+            pixel_data = dicom_preprocess(dicom_dir, min_hu=min_hu, max_hu=max_hu)
         else:
             pixel_data = dcmread(dicom_dir).pixel_array.astype(np.float32)
     except Exception as e:
         print(f"{dicom_dir} is not a valid DICOM: {e}")
         return
     
-    min_val, max_val = pixel_data.min(), pixel_data.max()
-    # Avoid division by zero
-    if max_val > min_val:
-        pixel_data = (pixel_data - min_val) / (max_val - min_val) * 255.0
+    pixel_data = (pixel_data - min_hu)/(max_hu - min_hu)*255.0
     pixel_data = pixel_data.astype(np.uint8)
     
     image = Image.fromarray(pixel_data)
@@ -132,45 +143,18 @@ def dicom_preprocess(path, min_hu=-100, max_hu=400):
     pixel_clipped = np.clip(pixel_hu, min_hu, max_hu)
     return pixel_clipped
 
-# Loading one folder -------------------------------------------------------------------------------
-def load_folder(folder_path: Path):
-    files = []
+# Load all the liver present dicom pathes from the dataset -------------------------------------------
+def load_all_liver_appearances(base_path:Path, num_patients=[]):
+    global LIVER_INDICES
+    images, masks = [], []
 
-    for img in folder_path.iterdir():
-        #print(f"iterdir:{img}")
-        if img.is_file():
-            files.append(str(img))
+    to_load = LIVER_INDICES.keys() if num_patients == [] else num_patients
+    
+    for num_patient in to_load:
+        first, last = LIVER_INDICES[num_patient]
+        for ind in range(first, last+1):
+            images.append(base_path/f"3Dircadb1/3Dircadb1.{num_patient}/PATIENT_DICOM/PATIENT_DICOM/image_{ind}")
+            masks.append(base_path/f"3Dircadb1/3Dircadb1.{num_patient}/MASKS_DICOM/MASKS_DICOM/liver/image_{ind}")
+            
+    return images, masks
 
-    return files
-
-# Loading all the patients -------------------------------------------------------------------------
-def load_3Dircadb(base_path: str):
-    """
-    """
-    patient_extension_path = Path("PATIENT_DICOM") / "PATIENT_DICOM"
-    masks_extension_path = Path("MASKS_DICOM") / "MASKS_DICOM" / "liver"
-    #labelled_extension_path = Path("LABELLED_DICOM") / "LABELLED_DICOM"
-
-    all_patient = []
-    all_masks = []
-    #all_labelled = []
-
-    for current_path in base_path.iterdir(): # patients are not in order, problem???????? sort????
-        print(f"current:{current_path}")
-        if current_path.is_dir():
-            patient_path = current_path / patient_extension_path
-            masks_path = current_path / masks_extension_path
-            #labelled_path = current_path / labelled_extension_path
-
-            # the rest is the same as load_patient_dicom, we don't use the load_dicom file because
-            # appending is faster and more efficient than concatenating
-            for img in patient_path.iterdir(): # same number of elements in each of the three folders, one loop is ok
-                print(f"img:{img}")
-                if img.is_file():
-                    all_patient.append(str(img))
-                    image_name = os.path.splitext(img)[0]
-                    all_masks.append(str(masks_path / image_name))
-                    #all_labelled.append(str(labelled_path / image_name))
-                    
-
-    return all_patient, all_masks #, all_labelled
