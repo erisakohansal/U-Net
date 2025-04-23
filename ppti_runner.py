@@ -417,6 +417,25 @@ def main():
 
                     prediction = model(image)
 
+                    # vérifier les résultats
+                    if fold == 0 and ep % 5 == 0 and i == 0:  # pour ne pas en avoir trop
+                        pred_mask = torch.sigmoid(prediction[0, 0]).cpu().numpy()
+                        gt_mask = mask[0, 0].cpu().numpy()
+                        img = image[0, 0].cpu().numpy()
+                        print("it should show something")
+
+                        fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+                        axs[0].imshow(img, cmap='gray')
+                        axs[0].set_title("Image d'entrée")
+                        axs[1].imshow(gt_mask, cmap='gray')
+                        axs[1].set_title("Masque réel")
+                        axs[2].imshow(pred_mask > 0.5, cmap='gray')
+                        axs[2].set_title("Masque prédit")
+                        plt.suptitle(f"Fold {fold}, Epoch {ep+1}")
+                        plt.tight_layout()
+                        fig.savefig(f"./visu_fold_{fold}/epoch{ep+1}_i{i}.png")
+                        plt.close(fig)
+
                     loss = loss_func(prediction, mask)
                     metric = dice_metric(prediction, mask)
 
