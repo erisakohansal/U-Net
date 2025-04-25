@@ -7,7 +7,7 @@ import os
 import cv2
 import numpy as np
 
-from utils import dicom_preprocess, load_folder, load_all_liver_appearances
+from utils import dicom_preprocess, load_all_liver_appearances
 
 class LiverCTDataset(Dataset):
     # https://youtu.be/Sj-gIb0QiRM?si=zhdg12zIHM9E7ajD

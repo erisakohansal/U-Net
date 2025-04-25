@@ -8,12 +8,15 @@ def dice_loss(pred, gt_mask, eps=1):
         - eps helps us avoid division by zero
     """
     dice_coeff = dice_metric(pred=pred, gt_mask=gt_mask, eps=eps)
-    return 1 - dice_coeff.mean()
+    return 1 - dice_coeff
 
-def dice_metric(pred, gt_mask, eps=1):
-    pred = torch.sigmoid(pred) # the sigmoid converts the logits into probabilities
-    intersection = (pred * gt_mask).sum(dim=(2, 3)) # dim 2, 3 = H, W
-    union = pred.sum(dim=(2, 3)) + gt_mask.sum(dim=(2, 3))
-    if union == 0: union += eps  # eps to avoid division by zero
-    dice_coeff = (2. * intersection) / union
-    return dice_coeff
+def dice_metric(pred, gt_mask, eps=1e-6): # plus haut => meilleur
+    assert set(gt_mask.unique().tolist()) <= {0, 1}, "Le masque de vérité doit être binaire, 0 ou 1"
+
+    pred = torch.sigmoid(pred)
+
+    intersection = (pred * gt_mask).sum(dim=(2,3)) # flatten?
+    union = pred.sum(dim=(2,3)) + gt_mask.sum(dim=(2,3))
+
+    dice_coeff = (2. * intersection + eps) / (union + eps)
+    return dice_coeff.mean() # moyenne sur le batch

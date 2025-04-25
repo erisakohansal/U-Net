@@ -146,7 +146,7 @@ def dicom_preprocess(path, min_hu=-100, max_hu=400):
 # Load all the liver present dicom pathes from the dataset -------------------------------------------
 def load_all_liver_appearances(base_path:Path, num_patients=[]):
     global LIVER_INDICES
-    images, masks = [], []
+    images, masks, patient_id = [], [], []
 
     to_load = LIVER_INDICES.keys() if num_patients == [] else num_patients
     
@@ -155,6 +155,6 @@ def load_all_liver_appearances(base_path:Path, num_patients=[]):
         for ind in range(first, last+1):
             images.append(base_path/f"3Dircadb1/3Dircadb1.{num_patient}/PATIENT_DICOM/PATIENT_DICOM/image_{ind}")
             masks.append(base_path/f"3Dircadb1/3Dircadb1.{num_patient}/MASKS_DICOM/MASKS_DICOM/liver/image_{ind}")
+            patient_id.append(num_patient)
             
-    return images, masks
-
+    return images, masks, patient_id

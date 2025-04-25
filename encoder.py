@@ -1,20 +1,20 @@
 import torch.nn as nn
-from double_conv import DoubleConv
+from double_conv import DoubleConv2D
 
 
-class Encoder(nn.Module):
+class Encoder2D(nn.Module):
 
     def __init__(self, in_channels=1, channels=(64, 128, 256, 512)):
         # in_channel=1 for grayscale, 3 for RGB
-        super(Encoder, self).__init__()
+        super(Encoder2D, self).__init__()
         self.down = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
         for channel in channels:
-            self.down.append(DoubleConv(in_channels, channel))
+            self.down.append(DoubleConv2D(in_channels, channel))
             in_channels = channel
 
-        self.bottleneck = DoubleConv(channels[-1], channels[-1]*2)
+        self.bottleneck = DoubleConv2D(channels[-1], channels[-1]*2)
 
     def forward(self, x):
         skip_connections = []

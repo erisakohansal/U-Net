@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as tf
-from double_conv import DoubleConv
+from double_conv import DoubleConv2D
 
 
-class Decoder(nn.Module):
+class Decoder2D(nn.Module):
 
     def __init__(self, out_channel=1, channels=(512, 256, 128, 64)):
-        super(Decoder, self).__init__()
+        super(Decoder2D, self).__init__()
 
         self.up = nn.ModuleList()
 
@@ -16,7 +16,7 @@ class Decoder(nn.Module):
             self.up.append(
                 nn.ConvTranspose2d(in_channels=channel * 2, out_channels=channel, kernel_size=2, stride=2)
             )
-            self.up.append(DoubleConv(channel * 2, channel))
+            self.up.append(DoubleConv2D(channel * 2, channel))
 
         self.final_conv = nn.Conv2d(channels[-1], out_channel, kernel_size=1)
 
