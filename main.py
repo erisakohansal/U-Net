@@ -10,8 +10,8 @@ import torch.optim as optim # optimizer
 import copy
 
 from unet import UNet2D
-from LiverCTDataset import LiverCTDataset
-from loss import dice_loss, dice_metric
+from dataset import LiverCTDataset
+from loss import dice_loss_2d, dice_metric_2d
 from utils import load_all_liver_appearances, unzip
 
 def main():
@@ -130,8 +130,8 @@ def main():
 
         print(f"Resumed from epoch {start_epoch}")
         
-    loss_func = dice_loss
-    metric_func = dice_metric
+    loss_func = dice_loss_2d
+    metric_func = dice_metric_2d
 
     train_loss_all, val_loss_all = [], [] # mean loss per EPOCH
     train_metric_all, val_metric_all = [], []
@@ -199,7 +199,7 @@ def main():
                     plt.close(fig)
 
                 loss = loss_func(prediction, mask)
-                metric = dice_metric(prediction, mask)
+                metric = metric_func(prediction, mask)
 
                 current_val_loss += loss.item()
                 current_val_metric += metric.item()
@@ -272,7 +272,7 @@ def main():
             plt.close(fig)
 
             loss = loss_func(prediction, mask)
-            metric = dice_metric(prediction, mask)
+            metric = metric_func(prediction, mask)
 
             current_test_loss += loss.item()
             current_test_metric += metric.item()
